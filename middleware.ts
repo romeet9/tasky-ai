@@ -6,7 +6,7 @@ export async function middleware(request: NextRequest) {
 
   // "/invite" is public so an invited user can open the link before signing in;
   // the invite page handles sign-in itself, then accepts the invite.
-  const publicRoutes = ["/", "/login", "/signup", "/api/auth", "/invite", "/debug", "/about", "/terms", "/refund", "/contact"];
+  const publicRoutes = ["/", "/login", "/signup", "/api/auth", "/invite", "/preview", "/debug", "/about", "/terms", "/refund", "/contact"];
   const isPublic = publicRoutes.some((route) => {
     if (route === "/") return pathname === "/";
     return pathname.startsWith(route);

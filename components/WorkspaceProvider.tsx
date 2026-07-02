@@ -60,8 +60,12 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         const saved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
         const preferred = current || saved;
         const exists = list.some((w) => w.id === preferred);
-        // Fall back to the personal workspace (first in the sorted list).
-        return exists ? preferred : list[0]?.id ?? null;
+        // Respect a saved choice; otherwise default to the first TEAM workspace
+        // (so managers/employees land on the shared board where assignments are
+        // visible), falling back to personal only when there's no team.
+        return exists
+          ? preferred
+          : list.find((w) => !w.personal)?.id ?? list[0]?.id ?? null;
       });
     } catch (error) {
       console.error("Failed to load workspaces:", error);

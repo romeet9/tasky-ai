@@ -102,20 +102,23 @@ export async function listMembers(workspaceId: string): Promise<WorkspaceMember[
   return snap.docs.map((d) => memberFromDoc(d.data()));
 }
 
-// Lists every workspace the user belongs to, with their role. Uses a
-// collection-group query over `members` (see firestore.indexes.json for the
-// required index).
+// Lists every workspace the user belongs to, with their role. Reads the
+// denormalized `workspaceIds` array (+ personalWorkspaceId) off the user doc so
+// it needs no collection-group index. Membership is re-verified per workspace.
 export async function getUserWorkspaces(uid: string): Promise<WorkspaceWithRole[]> {
-  const memberSnap = await adminDb
-    .collectionGroup('members')
-    .where('uid', '==', uid)
-    .get();
+  const userSnap = await adminDb.collection('users').doc(uid).get();
+  const data = userSnap.data() || {};
+  const ids = new Set<string>();
+  if (Array.isArray(data.workspaceIds)) for (const id of data.workspaceIds) ids.add(id);
+  if (data.personalWorkspaceId) ids.add(data.personalWorkspaceId);
 
   const results: WorkspaceWithRole[] = [];
-  for (const memberDoc of memberSnap.docs) {
-    const data = memberDoc.data();
-    const ws = await getWorkspace(data.workspaceId);
-    if (ws) results.push({ ...ws, role: data.role as WorkspaceRole });
+  for (const wid of ids) {
+    const ws = await getWorkspace(wid);
+    if (!ws) continue;
+    const membership = await getMembership(wid, uid);
+    if (!membership) continue; // stale id: not actually a member
+    results.push({ ...ws, role: membership.role });
   }
   // Personal workspace first, then alphabetical.
   results.sort((a, b) => {
@@ -156,6 +159,11 @@ export async function createWorkspace(input: CreateWorkspaceInput): Promise<Work
     invitedBy: null,
     joinedAt: FieldValue.serverTimestamp(),
   });
+  batch.set(
+    adminDb.collection('users').doc(uid),
+    { workspaceIds: FieldValue.arrayUnion(wsRef.id) },
+    { merge: true }
+  );
   await batch.commit();
 
   return {
@@ -223,6 +231,11 @@ export async function upsertMember(params: {
       },
       { merge: true }
     );
+  // Denormalize onto the member's user doc so getUserWorkspaces finds it.
+  await adminDb
+    .collection('users')
+    .doc(uid)
+    .set({ workspaceIds: FieldValue.arrayUnion(workspaceId) }, { merge: true });
 }
 
 export async function setMemberRole(
@@ -245,4 +258,8 @@ export async function removeMember(workspaceId: string, uid: string): Promise<vo
     .collection('members')
     .doc(uid)
     .delete();
+  await adminDb
+    .collection('users')
+    .doc(uid)
+    .set({ workspaceIds: FieldValue.arrayRemove(workspaceId) }, { merge: true });
 }

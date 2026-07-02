@@ -179,14 +179,40 @@ export default function TaskCard({
                 {task.description}
               </p>
             </div>
-            <button
-              onClick={() => onDelete(task.id)}
-              className="shrink-0 cursor-pointer p-1 text-raycast-dim-gray transition-opacity hover:opacity-60 active:text-raycast-red sm:p-0"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              {/* Assignee — prominent, aligned with the title, so "who owns this" scans first */}
+              {canReassign ? (
+                <select
+                  value={task.assigneeId ?? ""}
+                  onChange={(e) => onReassign!(task.id, e.target.value || null)}
+                  title="Reassign task"
+                  className="max-w-[160px] cursor-pointer rounded-[86px] bg-raycast-card px-2.5 py-1 text-[12px] font-medium text-raycast-light-gray outline-none focus:border-raycast-blue"
+                  style={{ border: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  <option value="">Unassigned</option>
+                  {members!.map((m) => (
+                    <option key={m.uid} value={m.uid} className="bg-[#101111]">
+                      {m.displayName || m.email}
+                    </option>
+                  ))}
+                </select>
+              ) : assigneeName ? (
+                <span
+                  className="inline-flex items-center rounded-[86px] bg-raycast-card px-2 py-1"
+                  style={{ border: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  <UserChip name={assigneeName} size="sm" />
+                </span>
+              ) : null}
+              <button
+                onClick={() => onDelete(task.id)}
+                className="shrink-0 cursor-pointer p-1 text-raycast-dim-gray transition-opacity hover:opacity-60 active:text-raycast-red sm:p-0"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Date pill — only shown when scheduledDate is set */}
@@ -235,30 +261,8 @@ export default function TaskCard({
               </span>
             )}
 
-            {/* Manager: reassign dropdown. */}
-            {canReassign && (
-              <select
-                value={task.assigneeId ?? ""}
-                onChange={(e) => onReassign!(task.id, e.target.value || null)}
-                className="rounded-[86px] bg-raycast-card px-2.5 py-1 text-[12px] text-raycast-light-gray outline-none"
-                style={{ border: "1px solid rgba(255,255,255,0.06)" }}
-              >
-                <option value="">Unassigned</option>
-                {members!.map((m) => (
-                  <option key={m.uid} value={m.uid} className="bg-[#101111]">
-                    {m.displayName || m.email}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {/* Read-only assignee chip (non-manager team view). */}
-            {!canReassign && assigneeName && (
-              <UserChip name={assigneeName} label="Assigned to" />
-            )}
-
             {/* Who assigned it (employee view). */}
-            {assignedByName && <UserChip name={assignedByName} label="by" />}
+            {assignedByName && <UserChip name={assignedByName} label="Assigned by" />}
           </div>
         </div>
       </div>

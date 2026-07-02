@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Task } from "@/types/task";
+import type { WorkspaceMember } from "@/types/workspace";
 import TaskCard from "@/components/TaskCard";
 import TaskSkeleton from "@/components/TaskSkeleton";
 import EmptyState from "@/components/EmptyState";
@@ -15,12 +16,20 @@ import UserChip from "@/components/UserChip";
 
 const CATEGORIES = ["All", "Work", "Personal", "Learning", "Health", "Meetings"];
 
-export default function TaskList({ fetchKey }: { fetchKey?: number }) {
-  const { activeWorkspaceId, activeWorkspace, activeRole, members } = useWorkspace();
+export default function TaskList({
+  fetchKey,
+  demo,
+}: {
+  fetchKey?: number;
+  demo?: { tasks: Task[]; members: WorkspaceMember[]; isManager: boolean };
+}) {
+  const ws = useWorkspace();
+  const activeWorkspaceId = ws.activeWorkspaceId;
+  const members = demo ? demo.members : ws.members;
   // Team context: managers see all tasks (grouped by assignee, reassignable);
   // employees see only their own with an "assigned by" chip.
-  const isTeam = !!activeWorkspace && !activeWorkspace.personal;
-  const isManager = !!activeRole && can(activeRole, "tasks:assign");
+  const isTeam = demo ? true : !!ws.activeWorkspace && !ws.activeWorkspace.personal;
+  const isManager = demo ? demo.isManager : !!ws.activeRole && can(ws.activeRole, "tasks:assign");
   const [groupByAssignee, setGroupByAssignee] = useState(true);
   const [memberFilter, setMemberFilter] = useState<string>("all");
   const memberName = useCallback(
@@ -31,11 +40,11 @@ export default function TaskList({ fetchKey }: { fetchKey?: number }) {
     },
     [members]
   );
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<Task[]>(demo?.tasks ?? []);
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!demo);
   const [activities, setActivities] = useState<Array<{ id: string; message: string; status: "pending" | "success" | "error"; timestamp: number }>>([]);
   const [newTaskIds, setNewTaskIds] = useState<Set<string>>(new Set());
   const prevTaskCountRef = useRef(0);
@@ -86,6 +95,7 @@ export default function TaskList({ fetchKey }: { fetchKey?: number }) {
 
   // Refetch on mount and whenever the active workspace changes.
   useEffect(() => {
+    if (demo) return;
     setIsLoading(true);
     fetchTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -68,6 +68,9 @@ export async function GET(request: Request) {
     const workspaceId = new URL(request.url).searchParams.get("workspaceId");
 
     let query: FirebaseFirestore.Query = adminDb.collection("tasks");
+    // Personal/legacy path uses the deployed userId+createdAt index (dbSort).
+    // Team paths sort in memory to avoid composite indexes that aren't deployed.
+    let dbSort = true;
     if (workspaceId) {
       const membership = await requirePermission(workspaceId, user.uid, "tasks:view");
       const ws = await getWorkspace(workspaceId);
@@ -86,13 +89,17 @@ export async function GET(request: Request) {
         } else if (assigneeFilter) {
           query = query.where("assigneeId", "==", assigneeFilter);
         }
+        dbSort = false;
       }
     } else {
       query = query.where("userId", "==", user.uid);
     }
 
-    const snapshot = await query.orderBy("createdAt", "desc").get();
+    const snapshot = dbSort
+      ? await query.orderBy("createdAt", "desc").get()
+      : await query.get();
     const tasks = snapshot.docs.map((doc) => serializeTask(doc.id, doc.data()));
+    if (!dbSort) tasks.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return NextResponse.json({ tasks, success: true });
   } catch (error) {
     return handleError(error);
