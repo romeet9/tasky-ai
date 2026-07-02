@@ -1,0 +1,34 @@
+# TaskyAI
+
+> AI task planner that converts your morning brief into structured, prioritized tasks with subtasks and categories.
+
+## What is TaskyAI?
+
+TaskyAI is an AI-powered task planning tool that reads your plain-language brief and automatically generates structured, prioritized tasks with subtasks, categories (Work, Personal, Health, Learning), and priority levels (high, medium, low). It reduces morning planning time by up to 90%.
+
+## How it works
+
+1. **Type your brief** — Share what you need to accomplish in plain language. No templates, no forms, no formatting required.
+2. **AI organizes it** — Tasky reads your brief, detects categories and priorities, and generates structured tasks with subtasks automatically.
+3. **Get structured tasks** — Walk away with a fully organized task list. Priorities set, subtasks created, categories assigned. Start doing, not planning.
+
+## Key features
+
+- AI-powered task breakdown from plain language briefs
+- Smart categorization (Work, Personal, Health, Learning)
+- Priority detection (high, medium, low)
+- Subtask generation
+- Chat history with context recovery
+- File context (PDF, DOCX, spreadsheet upload)
+
+## Pricing
+
+See [pricing.md](/pricing.md) for full pricing details.
+
+## Links
+
+- Landing page: https://task-planner-seven-zeta.vercel.app
+- Login: https://task-planner-seven-zeta.vercel.app/login
+- Features: https://task-planner-seven-zeta.vercel.app/#features
+- Pricing: https://task-planner-seven-zeta.vercel.app/#pricing
+- Demo: https://task-planner-seven-zeta.vercel.app/#demo

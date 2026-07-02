@@ -1,0 +1,139 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- RBAC helpers -------------------------------------------------
+    // Role ranks mirror lib/rbac/permissions.ts (ROLE_RANK). Keep in sync.
+    function roleRank(role) {
+      return role == 'owner' ? 4
+           : role == 'admin' ? 3
+           : role == 'member' ? 2
+           : role == 'viewer' ? 1
+           : 0;
+    }
+    function signedIn() {
+      return request.auth != null;
+    }
+    function memberPath(wid) {
+      return /databases/$(database)/documents/workspaces/$(wid)/members/$(request.auth.uid);
+    }
+    function isMember(wid) {
+      return signedIn() && exists(memberPath(wid));
+    }
+    function myRank(wid) {
+      return roleRank(get(memberPath(wid)).data.role);
+    }
+    // Manager = admin or owner (holds tasks:assign in lib/rbac/permissions.ts).
+    function isManager(wid) {
+      return isMember(wid) && myRank(wid) >= 3;
+    }
+    // Access to a workspace-scoped document: workspace members with a minimum
+    // rank, OR (legacy fallback) the original owner of a pre-workspace doc.
+    function canReadScoped(data) {
+      return signedIn() && (
+        (data.workspaceId != null && isMember(data.workspaceId)) ||
+        (data.workspaceId == null && data.userId == request.auth.uid)
+      );
+    }
+    function canWriteScoped(data, minRank) {
+      return signedIn() && (
+        (data.workspaceId != null && isMember(data.workspaceId) && myRank(data.workspaceId) >= minRank) ||
+        (data.workspaceId == null && data.userId == request.auth.uid)
+      );
+    }
+
+    // ---- Users --------------------------------------------------------
+    match /users/{userId} {
+      allow create: if signedIn() && request.auth.uid == userId;
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow update: if signedIn() && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    // ---- Workspaces ---------------------------------------------------
+    // All workspace + membership mutations go through the API (Admin SDK, which
+    // bypasses rules). Clients get read-only, membership-scoped access here.
+    match /workspaces/{wid} {
+      allow read: if isMember(wid);
+      allow write: if false;
+
+      match /members/{memberId} {
+        // Any member may see the roster; nobody writes directly from the client.
+        allow read: if isMember(wid);
+        allow write: if false;
+      }
+    }
+
+    // Invites are managed entirely server-side (token lookup + email match).
+    match /invites/{inviteId} {
+      allow read, write: if false;
+    }
+
+    // ---- Tasks --------------------------------------------------------
+    // Managers see/act on all workspace tasks; employees only on tasks assigned
+    // to them or that they created. Non-managers can't change the assignee.
+    match /tasks/{taskId} {
+      allow read: if signedIn() && (
+        (resource.data.workspaceId != null && (
+          isManager(resource.data.workspaceId) ||
+          resource.data.assigneeId == request.auth.uid ||
+          resource.data.createdBy == request.auth.uid
+        )) ||
+        (resource.data.workspaceId == null && resource.data.userId == request.auth.uid)
+      );
+
+      allow create: if signedIn() && (
+        (request.resource.data.workspaceId != null &&
+          isMember(request.resource.data.workspaceId) &&
+          myRank(request.resource.data.workspaceId) >= 2 && (
+            isManager(request.resource.data.workspaceId) ||
+            request.resource.data.assigneeId == request.auth.uid ||
+            request.resource.data.assigneeId == null
+          )) ||
+        (request.resource.data.workspaceId == null &&
+          request.resource.data.userId == request.auth.uid)
+      );
+
+      allow update: if signedIn() && (
+        (resource.data.workspaceId != null &&
+          isMember(resource.data.workspaceId) &&
+          myRank(resource.data.workspaceId) >= 2 && (
+            isManager(resource.data.workspaceId) ||
+            ((resource.data.assigneeId == request.auth.uid ||
+              resource.data.createdBy == request.auth.uid) &&
+             request.resource.data.assigneeId == resource.data.assigneeId)
+          )) ||
+        (resource.data.workspaceId == null && resource.data.userId == request.auth.uid)
+      );
+
+      allow delete: if signedIn() && (
+        (resource.data.workspaceId != null && (
+          isManager(resource.data.workspaceId) ||
+          resource.data.createdBy == request.auth.uid
+        )) ||
+        (resource.data.workspaceId == null && resource.data.userId == request.auth.uid)
+      );
+    }
+
+    // ---- Meetings -----------------------------------------------------
+    match /meetings/{meetingId} {
+      allow read: if canReadScoped(resource.data);
+      allow create: if canWriteScoped(request.resource.data, 2);
+      allow update: if canWriteScoped(resource.data, 2);
+      allow delete: if canWriteScoped(resource.data, 2);
+
+      match /meeting_minutes/{momId} {
+        allow read: if canReadScoped(get(/databases/$(database)/documents/meetings/$(meetingId)).data);
+        allow write: if canWriteScoped(get(/databases/$(database)/documents/meetings/$(meetingId)).data, 2);
+      }
+    }
+
+    // ---- Chat sessions ------------------------------------------------
+    match /chat_sessions/{sessionId} {
+      allow read: if canReadScoped(resource.data);
+      allow create: if canWriteScoped(request.resource.data, 2);
+      allow update: if canWriteScoped(resource.data, 2);
+      allow delete: if canWriteScoped(resource.data, 2);
+    }
+  }
+}

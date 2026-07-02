@@ -1,0 +1,83 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase/client';
+import { doc, getDoc } from 'firebase/firestore';
+
+export interface AdminAuth {
+  isAdmin: boolean;
+  isLoading: boolean;
+  user: {
+    uid: string;
+    email: string;
+    displayName: string;
+    role: 'user' | 'admin';
+  } | null;
+}
+
+export function useAdminAuth(): AdminAuth {
+  const [adminAuth, setAdminAuth] = useState<AdminAuth>({
+    isAdmin: false,
+    isLoading: true,
+    user: null,
+  });
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        console.log('[useAdminAuth] No user signed in');
+        setAdminAuth({
+          isAdmin: false,
+          isLoading: false,
+          user: null,
+        });
+        return;
+      }
+
+      console.log('[useAdminAuth] Checking admin status for:', firebaseUser.email);
+
+      try {
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const isAdmin = userData.role === 'admin';
+          
+          console.log('[useAdminAuth] User data:', userData);
+          console.log('[useAdminAuth] Role:', userData.role);
+          console.log('[useAdminAuth] Is admin:', isAdmin);
+          
+          setAdminAuth({
+            isAdmin,
+            isLoading: false,
+            user: {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              displayName: userData.displayName || firebaseUser.email?.split('@')[0] || 'User',
+              role: userData.role || 'user',
+            },
+          });
+        } else {
+          console.log('[useAdminAuth] User document does not exist');
+          setAdminAuth({
+            isAdmin: false,
+            isLoading: false,
+            user: null,
+          });
+        }
+      } catch (error) {
+        console.error('[useAdminAuth] Error checking admin status:', error);
+        setAdminAuth({
+          isAdmin: false,
+          isLoading: false,
+          user: null,
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  return adminAuth;
+}
