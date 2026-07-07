@@ -25,6 +25,12 @@ Turn a plain-English brief into structured, prioritized tasks — with subtasks,
 
 ---
 
+## 📊 At a glance
+
+![TaskyAI at a glance](docs/screenshots/kpi-cards.png)
+
+---
+
 ## ✨ Highlights
 
 - **AI task planning** — describe your day in the chat; the assistant returns tasks with descriptions, categories, priorities, due dates, and subtasks.
