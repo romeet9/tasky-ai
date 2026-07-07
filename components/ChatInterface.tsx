@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Clock, GearSix, Calendar, SignOut, Check, CaretDown } from "@phosphor-icons/react";
+import { Plus, Clock, GearSix, Check } from "@phosphor-icons/react";
 import type { Task } from "@/types/task";
 import type { User } from "firebase/auth";
 import TaskPreviewCard from "@/components/TaskPreviewCard";
@@ -16,15 +17,7 @@ import { can } from "@/lib/rbac/permissions";
 
 interface ChatInterfaceProps {
   onTasksAdded?: () => void;
-  showSettings: boolean;
-  setShowSettings: (show: boolean) => void;
-  settingsRef: React.RefObject<HTMLDivElement>;
   user: User | null;
-  signOut: () => Promise<void>;
-  googleConnected?: boolean;
-  googleEmail?: string | null;
-  onGoogleConnect?: () => void;
-  onGoogleDisconnect?: () => void;
 }
 
 interface Message {
@@ -52,15 +45,7 @@ interface UploadedFile {
 
 export default function ChatInterface({
   onTasksAdded,
-  showSettings,
-  setShowSettings,
-  settingsRef,
   user,
-  signOut,
-  googleConnected,
-  googleEmail,
-  onGoogleConnect,
-  onGoogleDisconnect,
 }: ChatInterfaceProps) {
   const { activeWorkspaceId, activeWorkspace, activeRole, members } = useWorkspace();
   // Manager in a real team workspace → the AI proposes assignees and the preview
@@ -82,12 +67,9 @@ export default function ChatInterface({
     }
     return "standard";
   });
-  const [model, setModel] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("tasky-model") || "groq";
-    }
-    return "groq";
-  });
+  // Gemma 4 (ollama) is the only available model for now; the persist effect
+  // below overwrites any stale "groq" value in localStorage.
+  const [model, setModel] = useState("ollama");
   const [showHistory, setShowHistory] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const historyRef = useRef<HTMLDivElement>(null);
@@ -402,6 +384,7 @@ export default function ChatInterface({
       createdAt: new Date().toISOString(),
       scheduledDate: t.scheduledDate || null,
       status: "pending" as const,
+      priority: t.priority || "medium",
       assigneeId: t.assigneeId ?? null,
     }));
 
@@ -617,136 +600,19 @@ export default function ChatInterface({
           )}
         </AnimatePresence>
 
-        {/* Settings button */}
-        <motion.button
-          onClick={() => setShowSettings(!showSettings)}
-          className="flex items-center justify-center w-7 h-7 rounded"
+        {/* Settings — opens the full settings page directly (no popup) */}
+        <Link
+          href="/settings"
+          aria-label="Settings"
+          className="flex items-center justify-center w-7 h-7 rounded transition-opacity hover:opacity-60"
           style={{
             background: "transparent",
             boxShadow:
               "rgba(255, 255, 255, 0.05) 0px 1px 0px 0px inset, rgba(255, 255, 255, 0.1) 0px 0px 0px 1px, rgba(0, 0, 0, 0.2) 0px -1px 0px 0px inset",
           }}
-          whileHover={{ opacity: 0.6 }}
-          whileTap={{ scale: 0.9 }}
         >
           <GearSix size={12} color="#9c9c9d" weight="regular" />
-        </motion.button>
-
-        {/* Settings popup */}
-        <AnimatePresence>
-          {showSettings && (
-            <motion.div
-              ref={settingsRef}
-              className="absolute top-full right-0 mt-2 w-72 rounded-xl overflow-hidden z-50"
-              style={{
-                background: "#101111",
-                border: "1px solid rgba(255,255,255,0.06)",
-                boxShadow:
-                  "rgb(27, 28, 30) 0px 0px 0px 1px, rgb(7, 8, 10) 0px 0px 0px 1px inset",
-              }}
-              initial={{ opacity: 0, y: 8, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.96 }}
-              transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-            >
-              {/* Account info */}
-              <div
-                className="px-3 py-3"
-                style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
-              >
-                <span
-                  className="text-[10px] font-medium text-[#6a6b6c] uppercase"
-                  style={{ letterSpacing: "0.05px" }}
-                >
-                  Account
-                </span>
-                <div className="mt-2 flex items-center gap-2.5">
-                  <div
-                    className="h-8 w-8 rounded-full flex items-center justify-center text-[12px] font-semibold text-white"
-                    style={{ background: "linear-gradient(135deg, #FF6363, #ff4757)" }}
-                  >
-                    {user?.email?.charAt(0).toUpperCase() || "U"}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div
-                      className="text-[13px] font-medium text-[#f9f9f9] truncate"
-                      style={{ letterSpacing: "0.2px" }}
-                    >
-                      {user?.displayName || "User"}
-                    </div>
-                    <div
-                      className="text-[11px] text-[#6a6b6c] truncate"
-                      style={{ letterSpacing: "0.2px" }}
-                    >
-                      {user?.email}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Google Calendar */}
-              <div
-                className="px-3 py-3"
-                style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
-              >
-                <span
-                  className="text-[10px] font-medium text-[#6a6b6c] uppercase"
-                  style={{ letterSpacing: "0.05px" }}
-                >
-                  Google Calendar
-                </span>
-                {googleConnected ? (
-                  <div className="mt-2 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-[#5fc992]" />
-                      <span
-                        className="text-[12px] text-[#9c9c9d] truncate max-w-[160px]"
-                        style={{ letterSpacing: "0.2px" }}
-                      >
-                        {googleEmail}
-                      </span>
-                    </div>
-                    <button
-                      onClick={onGoogleDisconnect}
-                      className="text-[11px] text-[#FF6363] hover:underline"
-                      style={{ letterSpacing: "0.2px" }}
-                    >
-                      Disconnect
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={onGoogleConnect}
-                    className="mt-2 w-full flex items-center justify-center gap-2 rounded-lg py-2 text-[12px] font-medium text-[#f9f9f9]"
-                    style={{
-                      background: "rgba(85,179,255,0.1)",
-                      border: "1px solid rgba(85,179,255,0.2)",
-                      letterSpacing: "0.2px",
-                    }}
-                  >
-                    <Calendar size={14} color="#55b3ff" weight="regular" />
-                    Connect Google Calendar
-                  </button>
-                )}
-              </div>
-
-              {/* Sign out */}
-              <button
-                onClick={signOut}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-opacity hover:opacity-60"
-                style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
-              >
-                <SignOut size={12} color="#FF6363" weight="regular" />
-                <span
-                  className="text-[13px] font-medium text-[#FF6363]"
-                  style={{ letterSpacing: "0.2px" }}
-                >
-                  Sign Out
-                </span>
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        </Link>
       </div>
 
       {/* Messages */}

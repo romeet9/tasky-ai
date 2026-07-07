@@ -26,10 +26,8 @@ const DETAIL_OPTIONS = [
   { value: "comprehensive", label: "Comprehensive", desc: "Everything + blockers + priorities" },
 ];
 
-const MODEL_OPTIONS = [
-  { value: "groq", label: "Groq", desc: "Llama 3.3 70B — Fast & accurate" },
-  { value: "ollama", label: "Gemma 4", desc: "31B — Google's latest model" },
-];
+// Gemma 4 is the only available model for now — enforced server-side too.
+const LOCKED_MODEL_LABEL = "Gemma 4";
 
 interface UploadedFile {
   name: string;
@@ -105,14 +103,14 @@ const dropdownAnimation = {
 
 function Dropdown({ value, options, onChange, open, setOpen }: {
   value: string;
-  options: typeof MODEL_OPTIONS;
+  options: typeof DETAIL_OPTIONS;
   onChange: (v: string) => void;
   open: boolean;
   setOpen: (v: boolean) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const current = options.find((o) => o.value === value) || options[0];
-  const label = "desc" in options[0] && options[0].desc ? (options === MODEL_OPTIONS ? current.label : `Detail: ${current.label}`) : current.label;
+  const label = `Detail: ${current.label}`;
 
   useEffect(() => {
     if (!open) return;
@@ -133,7 +131,6 @@ function Dropdown({ value, options, onChange, open, setOpen }: {
         whileTap={{ scale: 0.96 }}
         transition={{ type: "spring", stiffness: 400, damping: 17 }}
       >
-        {options === MODEL_OPTIONS && <CaretDown size={12} weight="regular" />}
         {label}
         <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
           <CaretDown size={8} weight="regular" />
@@ -203,10 +200,7 @@ export default function ChatInput({
   onFilesChange,
   detailLevel,
   onDetailLevelChange,
-  model,
-  onModelChange,
 }: ChatInputProps) {
-  const [modelOpen, setModelOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState("");
@@ -279,7 +273,9 @@ export default function ChatInput({
 
           <div className="flex items-center justify-between px-3 py-2.5">
             <motion.div className="flex items-center gap-2" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}>
-              <Dropdown value={model} options={MODEL_OPTIONS} onChange={onModelChange} open={modelOpen} setOpen={setModelOpen} />
+              <div className="flex items-center gap-1.5 rounded-[86px] px-3 py-1.5 text-[12px] font-medium text-[#9c9c9d]" style={btnStyle}>
+                {LOCKED_MODEL_LABEL}
+              </div>
               <Dropdown value={detailLevel} options={DETAIL_OPTIONS} onChange={onDetailLevelChange} open={detailOpen} setOpen={setDetailOpen} />
             </motion.div>
             <motion.button onClick={onSend} disabled={!input.trim() || isLoading} className="rounded-md px-3 py-1.5 text-[12px] font-medium text-[#f9f9f9] disabled:opacity-30 disabled:cursor-not-allowed shrink-0" style={{ background: RAYCAST.danger, letterSpacing: "0.05px" }} whileHover={{ scale: 1.03, opacity: 0.85 }} whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 17 }}>

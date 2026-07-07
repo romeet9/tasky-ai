@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase/server";
-import { GroqProvider, OllamaProvider } from "@/lib/llm-providers";
+import { OllamaProvider } from "@/lib/llm-providers";
 import { getWorkspace, getMembership, listMembers } from "@/lib/workspace/server";
 import { can } from "@/lib/rbac/permissions";
 import type { WorkspaceMember } from "@/types/workspace";
@@ -35,8 +35,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { messages, detailLevel, fileContext, model: selectedModel, workspaceId } =
-      await request.json();
+    // Note: the body may still include a `model` field from older clients — ignored.
+    const { messages, detailLevel, fileContext, workspaceId } = await request.json();
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -119,25 +119,15 @@ Rules:
 
     const llmMessages = [systemPrompt, ...messages];
 
-    let result;
-    let providerName: string;
-    if (selectedModel === "ollama") {
-      const provider = new OllamaProvider();
-      result = await provider.chat(llmMessages, {
-        temperature: 0.7,
-        max_tokens: 3000,
-        response_format: { type: "json_object" },
-      });
-      providerName = "Gemma 4";
-    } else {
-      const provider = new GroqProvider();
-      result = await provider.chat(llmMessages, {
-        temperature: 0.7,
-        max_tokens: 3000,
-        response_format: { type: "json_object" },
-      });
-      providerName = "Groq";
-    }
+    // Gemma 4 is the only available model for now — the client-sent model is
+    // ignored (still parsed above so older clients don't break).
+    const provider = new OllamaProvider();
+    const result = await provider.chat(llmMessages, {
+      temperature: 0.7,
+      max_tokens: 3000,
+      response_format: { type: "json_object" },
+    });
+    const providerName = "Gemma 4";
 
     const parsed = (() => {
       let raw = result.content.trim();

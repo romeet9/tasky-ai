@@ -3,8 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import type { Task } from "@/types/task";
 import type { WorkspaceMember } from "@/types/workspace";
-import { Calendar } from "lucide-react";
-import UserChip from "@/components/UserChip";
+import { Calendar, ChevronDown, Flag, ListChecks, UserRound } from "lucide-react";
 
 interface TaskCardProps {
   task: Task;
@@ -20,29 +19,37 @@ interface TaskCardProps {
   // When provided (manager), the assignee chip becomes a reassign dropdown.
   members?: WorkspaceMember[];
   onReassign?: (taskId: string, assigneeId: string | null) => void;
+  // Denser layout for narrow Kanban columns.
+  compact?: boolean;
 }
 
-const STATUS_ORDER: Task["status"][] = ["pending", "in-progress", "completed"];
+// Tokens from DESIGN-raycast.md — the card follows the dark surface ladder,
+// hairline borders (no shadows), and soft semantic badges.
+const RC = {
+  surface: "#0d0d0d",
+  surfaceElevated: "#101111",
+  ink: "#f4f4f6",
+  body: "#cdcdcd",
+  mute: "#9c9c9d",
+  ash: "#6a6b6c",
+  stone: "#434345",
+  hairline: "#242728",
+  hairlineSoft: "rgba(255,255,255,0.08)",
+  onDarkMute: "rgba(255,255,255,0.72)",
+  blue: "#57c1ff",
+  blueSoft: "rgba(87,193,255,0.15)",
+  red: "#ff6161",
+  redSoft: "rgba(255,97,97,0.15)",
+  green: "#59d499",
+  greenSoft: "rgba(89,212,153,0.15)",
+  yellow: "#ffc533",
+  yellowSoft: "rgba(255,197,51,0.15)",
+};
 
-const PRIORITY_COLORS: Record<Task["priority"], { bg: string; border: string; text: string; dot: string }> = {
-  high: {
-    bg: "rgba(255, 99, 99, 0.15)",
-    border: "rgba(255, 99, 99, 0.3)",
-    text: "#FF6363",
-    dot: "bg-raycast-red",
-  },
-  medium: {
-    bg: "rgba(255, 188, 51, 0.15)",
-    border: "rgba(255, 188, 51, 0.3)",
-    text: "#ffbc33",
-    dot: "bg-raycast-yellow",
-  },
-  low: {
-    bg: "rgba(85, 179, 255, 0.15)",
-    border: "rgba(85, 179, 255, 0.3)",
-    text: "#55b3ff",
-    dot: "bg-raycast-blue",
-  },
+const PRIORITY: Record<Task["priority"], { text: string; soft: string; label: string; emoji: string }> = {
+  high: { text: RC.red, soft: RC.redSoft, label: "High", emoji: "🔴" },
+  medium: { text: RC.yellow, soft: RC.yellowSoft, label: "Medium", emoji: "🟡" },
+  low: { text: RC.blue, soft: RC.blueSoft, label: "Low", emoji: "🔵" },
 };
 
 function formatDate(d: Date): string {
@@ -85,268 +92,187 @@ export default function TaskCard({
   assignedByName,
   members,
   onReassign,
+  compact = false,
 }: TaskCardProps) {
-  const canReassign = !!members && !!onReassign;
   const completedSubtasks = task.subtasks.filter((s) => s.completed).length;
   const totalSubtasks = task.subtasks.length;
+  const isDone = task.status === "completed";
+  const priority = PRIORITY[task.priority];
 
-  const statusColors: Record<Task["status"], string> = {
-    pending: "bg-raycast-dim-gray",
-    "in-progress": "bg-raycast-blue",
-    completed: "bg-raycast-green",
-  };
-
-  const scheduledDisplay = (() => {
+  // Readable due date, e.g. "3 Jul".
+  const dateLabel = (() => {
     if (!task.scheduledDate) return null;
-    if (isToday(task.scheduledDate)) return "Today";
-    if (isTomorrow(task.scheduledDate)) return "Tomorrow";
-    return dateToString(new Date(task.scheduledDate + "T00:00:00"));
+    const [y, m, d] = task.scheduledDate.split("-").map(Number);
+    if (!y || !m || !d) return null;
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${d} ${months[m - 1]}`;
   })();
 
-  const datePillStyle = (() => {
-    if (!task.scheduledDate) return null;
-    if (isToday(task.scheduledDate)) {
-      return {
-        background: "rgba(85,179,255,0.10)",
-        border: "1px solid rgba(85,179,255,0.20)",
-        color: "#55b3ff",
-      };
-    }
-    if (isTomorrow(task.scheduledDate)) {
-      return {
-        background: "rgba(255,188,51,0.08)",
-        border: "1px solid rgba(255,188,51,0.20)",
-        color: "#ffbc33",
-      };
-    }
-    if (isPast(task.scheduledDate)) {
-      return {
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(255,255,255,0.04)",
-        color: "#434345",
-      };
-    }
-    return {
-      background: "rgba(85,179,255,0.08)",
-      border: "1px solid rgba(85,179,255,0.15)",
-      color: "#55b3ff",
-    };
-  })();
+  // Chips for priority / date / subtasks — taller than the base badge.
+  const badge =
+    "inline-flex items-center gap-1.5 rounded-[6px] px-2.5 py-2.5 text-[11px] font-medium leading-[1.5]";
+  const badgeLS = { letterSpacing: "0.3px" };
 
   return (
     <motion.div
-      className="rounded-xl"
+      className="group relative rounded-[10px] border transition-colors"
       style={{
-        background: "var(--raycast-surface)",
-        border: "1px solid rgba(255,255,255,0.06)",
-        boxShadow: "rgb(27, 28, 30) 0px 0px 0px 1px, rgb(7, 8, 10) 0px 0px 0px 1px inset",
+        background: RC.surface,
+        borderColor: RC.hairline,
+        fontFeatureSettings: '"calt", "kern", "liga", "ss03"',
       }}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-      whileHover={{ opacity: 0.85 }}
+      whileHover={{ y: -2, borderColor: "rgba(255,255,255,0.16)" }}
     >
-      <div className="flex items-start gap-3 p-4 sm:p-5">
+      <div className={`flex items-start gap-3 ${compact ? "p-3.5" : "p-4"}`}>
         <button
-          onClick={() => {
-            onStatusChange(task.id, "in-progress");
+          onClick={() => onStatusChange(task.id, isDone ? "pending" : "in-progress")}
+          title={isDone ? "Mark as pending" : "Mark as in progress"}
+          className={`mt-0.5 flex shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors ${
+            compact ? "h-5 w-5" : "h-[22px] w-[22px]"
+          }`}
+          style={{
+            borderColor: isDone ? RC.green : task.status === "in-progress" ? RC.blue : RC.stone,
+            background: isDone ? RC.green : "transparent",
           }}
-          className="mt-0.5 flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-raycast-dim-gray transition-opacity hover:opacity-60 active:border-raycast-blue sm:mt-1 sm:h-6 sm:w-6"
         >
-          {task.status === "completed" && (
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          {isDone && (
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+              <path d="M2 6L5 9L10 3" stroke="#07080a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           )}
-          {task.status === "in-progress" && (
-            <div className="h-2.5 w-2.5 rounded-full bg-raycast-blue" />
-          )}
+          {task.status === "in-progress" && <div className="h-2 w-2 rounded-full" style={{ background: RC.blue }} />}
         </button>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <h3
-                className="text-[18px] font-medium leading-tight text-raycast-white sm:text-[22px]"
-                style={{ letterSpacing: "0px" }}
+                className={`font-medium leading-snug ${compact ? "text-[15px] line-clamp-2" : "text-[18px]"} ${
+                  isDone ? "line-through" : ""
+                }`}
+                style={{ letterSpacing: "0.2px", color: isDone ? RC.ash : RC.ink }}
               >
                 {task.title}
               </h3>
-              <p
-                className="mt-0.5 text-[13px] leading-snug text-raycast-medium-gray sm:text-[14px]"
-                style={{ letterSpacing: "0.2px" }}
-              >
-                {task.description}
-              </p>
+              {task.description && (
+                <p
+                  className={`mt-1 leading-snug ${compact ? "text-[12.5px] line-clamp-2" : "text-[14px]"}`}
+                  style={{ letterSpacing: "0.1px", color: isDone ? RC.ash : RC.mute }}
+                >
+                  {task.description}
+                </p>
+              )}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {/* Assignee — prominent, aligned with the title, so "who owns this" scans first */}
-              {canReassign ? (
-                <select
-                  value={task.assigneeId ?? ""}
-                  onChange={(e) => onReassign!(task.id, e.target.value || null)}
-                  title="Reassign task"
-                  className="max-w-[160px] cursor-pointer rounded-[86px] bg-raycast-card px-2.5 py-1 text-[12px] font-medium text-raycast-light-gray outline-none focus:border-raycast-blue"
-                  style={{ border: "1px solid rgba(255,255,255,0.06)" }}
-                >
-                  <option value="">Unassigned</option>
-                  {members!.map((m) => (
-                    <option key={m.uid} value={m.uid} className="bg-[#101111]">
-                      {m.displayName || m.email}
-                    </option>
-                  ))}
-                </select>
-              ) : assigneeName ? (
-                <span
-                  className="inline-flex items-center rounded-[86px] bg-raycast-card px-2 py-1"
-                  style={{ border: "1px solid rgba(255,255,255,0.06)" }}
-                >
-                  <UserChip name={assigneeName} size="sm" />
+            <button
+              onClick={() => onDelete(task.id)}
+              title="Delete task"
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] opacity-0 transition group-hover:opacity-100 focus:opacity-100 hover:bg-[rgba(255,97,97,0.12)]"
+              style={{ color: RC.ash }}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Meta line — priority · date on the left, subtasks dropdown at the far right */}
+          <div className="mt-2.5 flex items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <span className={badge} style={{ ...badgeLS, background: RC.surfaceElevated, color: RC.body }}>
+                <Flag size={12} strokeWidth={2.5} color={priority.text} />
+                {priority.label}
+              </span>
+              {dateLabel && (
+                <span className={badge} style={{ ...badgeLS, background: RC.surfaceElevated, color: RC.body }}>
+                  <Calendar size={12} strokeWidth={2} style={{ color: RC.mute }} />
+                  {dateLabel}
                 </span>
-              ) : null}
-              <button
-                onClick={() => onDelete(task.id)}
-                className="shrink-0 cursor-pointer p-1 text-raycast-dim-gray transition-opacity hover:opacity-60 active:text-raycast-red sm:p-0"
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-              </button>
+              )}
+              {assignedByName && (
+                <span
+                  className="flex shrink-0 items-center gap-1 text-[11px]"
+                  style={{ color: RC.ash }}
+                  title={`Assigned by ${assignedByName}`}
+                >
+                  <UserRound size={12} strokeWidth={2} />
+                  {assignedByName}
+                </span>
+              )}
             </div>
-          </div>
 
-          {/* Date pill — only shown when scheduledDate is set */}
-          {scheduledDisplay && datePillStyle && (
-            <div className="mt-3">
-              <span
-                className="inline-flex items-center gap-1.5 rounded-[86px] px-2.5 py-1 text-[12px] font-medium"
-                style={{
-                  ...datePillStyle,
-                  letterSpacing: "0px",
-                }}
-              >
-                <Calendar size={12} strokeWidth={2} />
-                {scheduledDisplay}
-              </span>
-            </div>
-          )}
-
-          {/* Metadata row — wraps to second line */}
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span
-              className="inline-flex items-center gap-1.5 rounded-[86px] bg-raycast-card px-2.5 py-1 text-[12px] font-medium text-raycast-light-gray"
-              style={{ letterSpacing: "0px", border: "1px solid rgba(255,255,255,0.06)" }}
-            >
-              <span className={`h-1.5 w-1.5 rounded-full ${statusColors[task.status]}`} />
-              {task.status === "in-progress" ? "In Progress" : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-            </span>
-            <span
-              className="inline-flex items-center gap-1.5 rounded-[86px] px-2.5 py-1 text-[12px] font-medium"
-              style={{
-                letterSpacing: "0px",
-                background: PRIORITY_COLORS[task.priority].bg,
-                border: `1px solid ${PRIORITY_COLORS[task.priority].border}`,
-                color: PRIORITY_COLORS[task.priority].text,
-              }}
-            >
-              <span className={`h-1.5 w-1.5 rounded-full ${PRIORITY_COLORS[task.priority].dot}`} />
-              {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-            </span>
-            <span className="text-[12px] text-raycast-dim-gray" style={{ letterSpacing: "0px" }}>
-              {task.category}
-            </span>
             {totalSubtasks > 0 && (
-              <span className="text-[12px] text-raycast-dim-gray" style={{ letterSpacing: "0px" }}>
-                {completedSubtasks}/{totalSubtasks} subtasks
-              </span>
+              <button
+                onClick={onToggleExpand}
+                title={isExpanded ? "Hide subtasks" : "Show subtasks"}
+                className={`${badge} shrink-0 cursor-pointer transition-colors`}
+                style={{ ...badgeLS, background: RC.surfaceElevated, color: RC.body }}
+              >
+                <ListChecks size={12} strokeWidth={2} style={{ color: RC.mute }} />
+                <span className="tabular-nums">
+                  {completedSubtasks}/{totalSubtasks} subtasks
+                </span>
+                <motion.span
+                  animate={{ rotate: isExpanded ? 180 : 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="text-[#8a8a8c]"
+                >
+                  <ChevronDown size={11} strokeWidth={2} />
+                </motion.span>
+              </button>
             )}
-
-            {/* Who assigned it (employee view). */}
-            {assignedByName && <UserChip name={assignedByName} label="Assigned by" />}
           </div>
+
+          {totalSubtasks > 0 && (
+            <AnimatePresence initial={false}>
+              {isExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-1.5 flex flex-col">
+                    {task.subtasks.map((subtask, i) => (
+                      <motion.button
+                        key={subtask.id}
+                        onClick={() => onToggleSubtask(task.id, subtask.id)}
+                        className="flex w-full cursor-pointer items-start gap-2.5 py-2 text-left transition-opacity active:opacity-60"
+                        initial={{ opacity: 0, x: -4 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.15, delay: i * 0.04 }}
+                      >
+                        <span
+                          className="mt-[1px] flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[4px]"
+                          style={{
+                            border: subtask.completed ? "none" : `2px solid ${RC.stone}`,
+                            background: subtask.completed ? RC.blue : "transparent",
+                          }}
+                        >
+                          {subtask.completed && (
+                            <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                              <path d="M2 6L5 9L10 3" stroke="#07080a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </span>
+                        <span
+                          className={`text-[13px] leading-snug ${subtask.completed ? "line-through" : ""}`}
+                          style={{ letterSpacing: "0.1px", color: subtask.completed ? RC.ash : RC.body }}
+                        >
+                          {subtask.label}
+                        </span>
+                      </motion.button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
         </div>
       </div>
-
-      {totalSubtasks > 0 && (
-        <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-          <button
-            onClick={onToggleExpand}
-            className="flex w-full cursor-pointer items-center justify-between px-4 py-3 text-left transition-opacity hover:opacity-60 active:opacity-40 sm:px-5 sm:py-3"
-          >
-            <span className="text-[14px] font-medium text-raycast-medium-gray" style={{ letterSpacing: "0.2px" }}>
-              Subtasks
-            </span>
-            <motion.svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              animate={{ rotate: isExpanded ? 180 : 0 }}
-              transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-            >
-              <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-raycast-dim-gray"/>
-            </motion.svg>
-          </button>
-
-          <AnimatePresence initial={false}>
-            {isExpanded && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-                className="overflow-hidden"
-              >
-                <div className="px-4 pb-4 sm:px-5 sm:pb-4">
-                  {task.subtasks.map((subtask, i) => (
-                    <motion.button
-                      key={subtask.id}
-                      onClick={() => onToggleSubtask(task.id, subtask.id)}
-                      className="flex cursor-pointer items-center gap-3 py-2.5 w-full text-left transition-opacity active:opacity-60"
-                      initial={{ opacity: 0, x: -4 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.15, delay: i * 0.04 }}
-                    >
-                      <motion.div
-                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
-                        animate={{
-                          scale: subtask.completed ? [0.9, 1.05, 1] : 1,
-                        }}
-                        transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-                        style={{
-                          border: subtask.completed ? "none" : "2px solid #252829",
-                          background: subtask.completed
-                            ? "linear-gradient(135deg, #55b3ff, #3a9bef)"
-                            : "transparent",
-                          boxShadow: subtask.completed
-                            ? "rgba(85, 179, 255, 0.25) 0px 0px 0px 1px"
-                            : "rgba(0, 0, 0, 0.28) 0px 1.189px 2.377px",
-                        }}
-                      >
-                        {subtask.completed && (
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                            <path d="M2 6L5 9L10 3" stroke="#07080a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        )}
-                      </motion.div>
-                      <span
-                        className={`text-[14px] leading-snug transition-colors ${
-                          subtask.completed
-                            ? "text-raycast-dim-gray line-through"
-                            : "text-raycast-white"
-                        }`}
-                        style={{ letterSpacing: "0.2px" }}
-                      >
-                        {subtask.label}
-                      </span>
-                    </motion.button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
     </motion.div>
   );
 }

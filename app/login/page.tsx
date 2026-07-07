@@ -133,10 +133,20 @@ function LoginContent() {
             className="text-[14px] text-[#6a6b6c] mb-8"
             style={{ letterSpacing: "0.2px" }}
           >
-            Sign in with Google to continue to Tasky AI
+            Sign in or create an account to continue to Tasky AI
           </p>
 
           <AuthForm type="login" />
+
+          <div className="mt-6 text-center">
+            <Link
+              href="/demo"
+              className="text-[13px] text-[#6a6b6c] transition-colors hover:text-[#f9f9f9]"
+              style={{ letterSpacing: "0.2px" }}
+            >
+              Just exploring? View the live demo →
+            </Link>
+          </div>
         </motion.div>
       </div>
     </div>

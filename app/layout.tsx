@@ -4,6 +4,7 @@ import "./globals.css";
 import SWRegister from "@/components/SWRegister";
 import { AuthProvider } from "@/components/AuthProvider";
 import { WorkspaceProvider } from "@/components/WorkspaceProvider";
+import EmailVerificationBanner from "@/components/EmailVerificationBanner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -55,6 +56,7 @@ export default function RootLayout({
         style={{ fontFamily: "var(--font-inter)" }}
       >
         <AuthProvider>
+          <EmailVerificationBanner />
           <WorkspaceProvider>{children}</WorkspaceProvider>
         </AuthProvider>
         <SWRegister />

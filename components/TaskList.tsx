@@ -13,6 +13,7 @@ import { getAccessToken } from "@/lib/auth";
 import { useWorkspace } from "@/components/WorkspaceProvider";
 import { can } from "@/lib/rbac/permissions";
 import UserChip from "@/components/UserChip";
+import Select from "@/components/Select";
 
 const CATEGORIES = ["All", "Work", "Personal", "Learning", "Health", "Meetings"];
 
@@ -24,13 +25,15 @@ export default function TaskList({
   demo?: { tasks: Task[]; members: WorkspaceMember[]; isManager: boolean };
 }) {
   const ws = useWorkspace();
+  const isDemo = !!demo;
   const activeWorkspaceId = ws.activeWorkspaceId;
   const members = demo ? demo.members : ws.members;
   // Team context: managers see all tasks (grouped by assignee, reassignable);
   // employees see only their own with an "assigned by" chip.
   const isTeam = demo ? true : !!ws.activeWorkspace && !ws.activeWorkspace.personal;
   const isManager = demo ? demo.isManager : !!ws.activeRole && can(ws.activeRole, "tasks:assign");
-  const [groupByAssignee, setGroupByAssignee] = useState(true);
+  // Managers see a Kanban board: one column per employee (+ Unassigned).
+  const isManagerBoard = isTeam && isManager;
   const [memberFilter, setMemberFilter] = useState<string>("all");
   const memberName = useCallback(
     (uid?: string | null): string | null => {
@@ -160,6 +163,7 @@ export default function TaskList({
       t.id === taskId ? { ...t, subtasks: updatedSubtasks, status: newStatus } : t
     );
     setTasks(optimisticTasks);
+    if (isDemo) return;
 
     try {
       addActivity("Syncing subtask...", "pending");
@@ -193,6 +197,7 @@ export default function TaskList({
       t.id === taskId ? { ...t, status } : t
     );
     setTasks(optimisticTasks);
+    if (isDemo) return;
 
     try {
       addActivity(`Updating status to ${status}...`, "pending");
@@ -215,6 +220,7 @@ export default function TaskList({
   const handleDelete = async (taskId: string) => {
     const optimisticTasks = tasks.filter((t) => t.id !== taskId);
     setTasks(optimisticTasks);
+    if (isDemo) return;
 
     try {
       addActivity("Deleting task...", "pending");
@@ -232,6 +238,10 @@ export default function TaskList({
 
   const handleReassign = async (taskId: string, assigneeId: string | null) => {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, assigneeId } : t)));
+    if (isDemo) {
+      addActivity(assigneeId ? `Assigned to ${memberName(assigneeId)}` : "Unassigned", "success");
+      return;
+    }
     try {
       addActivity("Reassigning task...", "pending");
       const token = await getAccessToken();
@@ -272,21 +282,29 @@ export default function TaskList({
         onStatusChange={handleStatusChange}
         onDelete={handleDelete}
         assignedByName={isTeam && !isManager ? memberName(task.createdBy) : undefined}
-        members={isTeam && isManager ? members : undefined}
-        onReassign={isTeam && isManager ? handleReassign : undefined}
+        members={isManagerBoard ? members : undefined}
+        onReassign={isManagerBoard ? handleReassign : undefined}
+        compact={isManagerBoard}
       />
     </motion.div>
   );
 
-  // Manager view groups tasks by assignee, each header showing completion.
-  const assigneeGroups = (() => {
-    const map = new Map<string, Task[]>();
-    for (const t of filteredTasks) {
-      const key = t.assigneeId || "__unassigned";
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(t);
+  // Kanban columns: one per member (+ Unassigned). Built from tasks filtered by
+  // date/category only; the member filter focuses a single column.
+  const kanbanColumns = (() => {
+    let base = activeCategory === "All" ? tasks : tasks.filter((t) => t.category === activeCategory);
+    if (selectedDate) {
+      base = base.filter((t) => (t.scheduledDate || t.createdAt.split("T")[0]) === selectedDate);
     }
-    return [...map.entries()];
+    const cols = members.map((m) => ({
+      key: m.uid,
+      name: m.displayName || m.email || "Member",
+      tasks: base.filter((t) => t.assigneeId === m.uid),
+    }));
+    cols.push({ key: "__unassigned", name: "Unassigned", tasks: base.filter((t) => !t.assigneeId) });
+    if (memberFilter === "unassigned") return cols.filter((c) => c.key === "__unassigned");
+    if (memberFilter !== "all") return cols.filter((c) => c.key === memberFilter);
+    return cols;
   })();
 
   if (isLoading) {
@@ -337,96 +355,105 @@ export default function TaskList({
           backdropFilter: "blur(12px)",
         }}
       >
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide sm:flex-wrap sm:overflow-x-visible items-center">
-          {CATEGORIES.map((cat) => (
-            <motion.button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`shrink-0 rounded-[86px] px-4 py-1.5 text-[14px] font-medium ${
-                activeCategory === cat
-                  ? "bg-raycast-card text-raycast-white"
-                  : "bg-raycast-surface text-raycast-medium-gray"
-              }`}
-              style={{
-                letterSpacing: "0.2px",
-                border: activeCategory === cat ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(255,255,255,0.06)",
-              }}
-              whileHover={{ opacity: 0.6 }}
-              whileTap={{ scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 400, damping: 17 }}
-            >
-              {cat}
-            </motion.button>
-          ))}
-        </div>
+        {/* Category chips — hidden on the manager Kanban board. */}
+        {!isManagerBoard && (
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide sm:flex-wrap sm:overflow-x-visible items-center">
+            {CATEGORIES.map((cat) => (
+              <motion.button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`shrink-0 rounded-[86px] px-4 py-1.5 text-[14px] font-medium ${
+                  activeCategory === cat
+                    ? "bg-raycast-card text-raycast-white"
+                    : "bg-raycast-surface text-raycast-medium-gray"
+                }`}
+                style={{
+                  letterSpacing: "0.2px",
+                  border: activeCategory === cat ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(255,255,255,0.06)",
+                }}
+                whileHover={{ opacity: 0.6 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              >
+                {cat}
+              </motion.button>
+            ))}
+          </div>
+        )}
 
-        {/* Manager controls: filter by member + group toggle */}
-        {isTeam && isManager && (
-          <div className="flex items-center gap-2 pb-1">
-            <select
+        {/* Manager Kanban controls: focus a single column by member. */}
+        {isManagerBoard && (
+          <div className="flex items-center justify-between gap-2 py-1">
+            <span className="text-[13px] font-medium text-raycast-white">Team board</span>
+            <Select
+              ariaLabel="Filter by member"
+              align="right"
+              size="md"
+              className="min-w-[150px]"
               value={memberFilter}
-              onChange={(e) => setMemberFilter(e.target.value)}
-              className="rounded-[86px] bg-raycast-surface px-3 py-1.5 text-[13px] text-raycast-medium-gray outline-none"
-              style={{ border: "1px solid rgba(255,255,255,0.06)" }}
-            >
-              <option value="all">All members</option>
-              <option value="unassigned">Unassigned</option>
-              {members.map((m) => (
-                <option key={m.uid} value={m.uid} className="bg-[#101111]">
-                  {m.displayName || m.email}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => setGroupByAssignee((g) => !g)}
-              className={`rounded-[86px] px-3 py-1.5 text-[13px] font-medium ${
-                groupByAssignee ? "bg-raycast-card text-raycast-white" : "bg-raycast-surface text-raycast-medium-gray"
-              }`}
-              style={{ border: "1px solid rgba(255,255,255,0.06)" }}
-            >
-              Group by assignee
-            </button>
+              onChange={setMemberFilter}
+              options={[
+                { value: "all", label: "All members" },
+                { value: "unassigned", label: "Unassigned" },
+                ...members.map((m) => ({ value: m.uid, label: m.displayName || m.email || "Member" })),
+              ]}
+            />
           </div>
         )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-20 pt-2">
-        <AnimatePresence mode="popLayout">
-          {filteredTasks.length === 0 ? (
-            <motion.div
-              key="empty"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <EmptyState />
-            </motion.div>
-          ) : isTeam && isManager && groupByAssignee ? (
-            <div className="flex flex-col gap-6">
-              {assigneeGroups.map(([key, groupTasks]) => {
-                const name = key === "__unassigned" ? "Unassigned" : memberName(key) || "Member";
-                const done = groupTasks.filter((t) => t.status === "completed").length;
-                return (
-                  <div key={key} className="flex flex-col gap-3">
-                    <div className="flex items-center justify-between px-1">
-                      {key === "__unassigned" ? (
-                        <span className="text-[13px] font-medium text-raycast-medium-gray">Unassigned</span>
-                      ) : (
-                        <UserChip name={name} size="md" />
-                      )}
-                      <span className="text-[12px] text-raycast-dim-gray">
-                        {done}/{groupTasks.length} done
-                      </span>
-                    </div>
-                    {groupTasks.map((task) => renderCard(task))}
+        {isManagerBoard ? (
+          // Kanban: horizontally-scrolling columns, one per employee.
+          <div className="flex gap-3 overflow-x-auto pb-4 pt-1 items-start scrollbar-hide">
+            {kanbanColumns.map((col) => {
+              const done = col.tasks.filter((t) => t.status === "completed").length;
+              return (
+                <div
+                  key={col.key}
+                  className="flex w-[460px] max-w-[90vw] shrink-0 flex-col gap-3 rounded-xl p-3.5"
+                  style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
+                >
+                  <div className="flex items-center justify-between gap-2 px-1 pt-0.5">
+                    {col.key === "__unassigned" ? (
+                      <span className="text-[13px] font-medium text-raycast-medium-gray">Unassigned</span>
+                    ) : (
+                      <UserChip name={col.name} size="md" />
+                    )}
+                    <span
+                      className="shrink-0 rounded-[86px] px-2 py-0.5 text-[11px] font-medium text-raycast-dim-gray"
+                      style={{ background: "rgba(255,255,255,0.04)" }}
+                    >
+                      {done}/{col.tasks.length}
+                    </span>
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">{filteredTasks.map((task) => renderCard(task))}</div>
-          )}
-        </AnimatePresence>
+                  <div className="flex flex-col gap-2.5">
+                    {col.tasks.length === 0 ? (
+                      <div
+                        className="rounded-lg px-3 py-8 text-center text-[12px] text-raycast-dim-gray"
+                        style={{ border: "1px dashed rgba(255,255,255,0.07)" }}
+                      >
+                        No tasks
+                      </div>
+                    ) : (
+                      col.tasks.map((task) => renderCard(task))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <AnimatePresence mode="popLayout">
+            {filteredTasks.length === 0 ? (
+              <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <EmptyState />
+              </motion.div>
+            ) : (
+              <div className="flex flex-col gap-3">{filteredTasks.map((task) => renderCard(task))}</div>
+            )}
+          </AnimatePresence>
+        )}
       </div>
 
       <ActivityLog activities={activities} />

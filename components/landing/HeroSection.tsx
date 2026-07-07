@@ -100,13 +100,14 @@ Tasky is an AI task planner that turns your brief into structured, prioritized t
               <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
             </Button>
           </Link>
-          <Link href="#demo">
+          <Link href="/demo">
             <Button
               variant="ghost"
               size="lg"
-              className="h-12 rounded-[86px] px-6 text-[15px] font-medium text-[#6a6b6c] hover:text-[#f9f9f9]"
+              className="group h-12 gap-2 rounded-[86px] px-6 text-[15px] font-medium text-[#6a6b6c] hover:text-[#f9f9f9]"
             >
-              Watch demo
+              Try live demo
+              <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
             </Button>
           </Link>
         </motion.div>

@@ -67,6 +67,15 @@ export function Header() {
               >
                 Pricing
               </a>
+              <Link
+                href="/demo"
+                className="px-3 py-1.5 text-[14px] text-[#9c9c9d] hover:text-[#f9f9f9] transition-all duration-200"
+                style={{ letterSpacing: "0.2px", textDecoration: "none" }}
+                onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
+                onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
+              >
+                Live demo
+              </Link>
             </div>
           </div>
 
@@ -136,6 +145,14 @@ function MobileMenu({ open, onClose }: MobileMenuProps) {
         >
           Pricing
         </a>
+        <Link
+          href="/demo"
+          onClick={onClose}
+          className="py-3 text-[16px] font-medium text-[#f9f9f9]"
+          style={{ letterSpacing: "0.2px" }}
+        >
+          Live demo
+        </Link>
 
         <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-white/[0.06]">
           <Link href="/login" onClick={onClose}>

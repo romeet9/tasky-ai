@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Copy, Loader2, Trash2, UserPlus } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
 import WorkspaceSwitcher from "@/components/WorkspaceSwitcher";
+import Select from "@/components/Select";
 import { useWorkspace } from "@/components/WorkspaceProvider";
 import {
   assignableRoles,
@@ -165,17 +166,14 @@ function ManageWorkspaces() {
                     placeholder="teammate@example.com"
                     className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-white/30"
                   />
-                  <select
+                  <Select
+                    ariaLabel="Invite role"
+                    variant="field"
+                    size="md"
                     value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as WorkspaceRole)}
-                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-white/30"
-                  >
-                    {grantable.map((r) => (
-                      <option key={r} value={r} className="bg-[#0e0f12]">
-                        {ROLE_LABELS[r]}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setInviteRole(v as WorkspaceRole)}
+                    options={grantable.map((r) => ({ value: r, label: ROLE_LABELS[r] }))}
+                  />
                   <button
                     onClick={handleInvite}
                     disabled={inviting || !inviteEmail.trim()}
@@ -204,19 +202,17 @@ function ManageWorkspaces() {
                       </div>
                       <div className="flex items-center gap-2">
                         {editable ? (
-                          <select
+                          <Select
+                            ariaLabel="Member role"
+                            variant="field"
+                            size="sm"
+                            align="right"
                             value={m.role}
-                            onChange={(e) => handleRoleChange(m.uid, e.target.value as WorkspaceRole)}
-                            className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs outline-none focus:border-white/30"
-                          >
-                            {[...grantable, m.role]
+                            onChange={(v) => handleRoleChange(m.uid, v as WorkspaceRole)}
+                            options={[...grantable, m.role]
                               .filter((v, i, a) => a.indexOf(v) === i)
-                              .map((r) => (
-                                <option key={r} value={r} className="bg-[#0e0f12]">
-                                  {ROLE_LABELS[r]}
-                                </option>
-                              ))}
-                          </select>
+                              .map((r) => ({ value: r, label: ROLE_LABELS[r] }))}
+                          />
                         ) : (
                           <span className="rounded-md bg-white/5 px-2 py-1 text-xs text-neutral-300">
                             {ROLE_LABELS[m.role]}

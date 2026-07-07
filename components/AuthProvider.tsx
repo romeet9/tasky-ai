@@ -3,12 +3,21 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { User, onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
-import { signInWithGoogle, signOut as authSignOut } from "@/lib/auth";
+import {
+  signInWithGoogle,
+  signOut as authSignOut,
+  signUpWithEmail as authSignUpWithEmail,
+  signInWithEmail as authSignInWithEmail,
+  resetPassword as authResetPassword,
+} from "@/lib/auth";
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   signIn: () => Promise<void>;
+  signUpWithEmail: (email: string, password: string, displayName?: string) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -16,6 +25,9 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
   signIn: async () => {},
+  signUpWithEmail: async () => {},
+  signInWithEmail: async () => {},
+  resetPassword: async () => {},
   signOut: async () => {},
 });
 
@@ -57,6 +69,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signInWithGoogle();
   };
 
+  const signUpWithEmail = async (email: string, password: string, displayName?: string) => {
+    await authSignUpWithEmail(email, password, displayName);
+  };
+
+  const signInWithEmail = async (email: string, password: string) => {
+    await authSignInWithEmail(email, password);
+  };
+
+  const resetPassword = async (email: string) => {
+    await authResetPassword(email);
+  };
+
   const signOut = async () => {
     await authSignOut();
     // Clear session cookie
@@ -65,7 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, signIn, signUpWithEmail, signInWithEmail, resetPassword, signOut }}
+    >
       {children}
     </AuthContext.Provider>
   );
