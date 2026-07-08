@@ -13,27 +13,21 @@ function LoginContent() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    async function redirectIfAuthenticated() {
-      if (!isLoading && user) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const redirect = searchParams.get("redirect") || "/chat";
-        router.push(redirect);
-      }
+    if (!isLoading && user) {
+      const redirect = searchParams.get("redirect") || "/chat";
+      router.replace(redirect);
     }
-
-    redirectIfAuthenticated();
   }, [user, isLoading, router, searchParams]);
 
-  if (isLoading) {
+  // Only show the redirect spinner once we KNOW the visitor is signed in.
+  // While auth is still resolving (or there's no user), render the form
+  // immediately so first-time visitors never wait behind a loading spinner.
+  if (user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#07080a]">
         <div className="h-6 w-6 rounded-full border-2 border-[#55b3ff] border-t-transparent animate-spin" />
       </div>
     );
-  }
-
-  if (user) {
-    return null;
   }
 
   return (
