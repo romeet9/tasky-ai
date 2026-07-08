@@ -81,6 +81,36 @@ body {
   display: none;
 }
 
+/* Accessibility: visible keyboard focus for all interactive elements.
+   Keyboard-only (:focus-visible) so mouse clicks don't show a ring. */
+:focus-visible {
+  outline: 2px solid var(--raycast-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--raycast-blue);
+  outline-offset: 2px;
+}
+
+/* Accessibility: honor reduced-motion at the CSS layer as a safety net.
+   framer-motion is also gated via <MotionConfig reducedMotion="user">. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @media (max-width: 640px) {
   input[type="checkbox"] {
     min-height: 20px;

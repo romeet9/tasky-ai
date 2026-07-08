@@ -88,10 +88,14 @@ Bad examples (too vague):
 
 ## Design System
 
-This app uses the Apple design system. Read `~/awesome-design-md/design-md/apple/DESIGN.md` for the full design system before making any UI changes.
+Read [`DESIGN.md`](./DESIGN.md) before making any visual or UI decisions. It is the
+single source of truth for typography, color, spacing, layout, and motion.
+Do not deviate without explicit user approval. In QA, flag any code that doesn't match it.
 
-Key rules:
-- Font: Inter with Apple's exact sizing, weights, and negative letter-spacing
-- Colors: Apple Blue (#0071e3) as sole accent, black (#000000) and light gray (#f5f5f7) backgrounds
-- Components: pill CTAs (980px radius), glass nav, soft shadows
-- No extra accent colors, no gradients on backgrounds, no borders on cards
+Quick reference (see DESIGN.md for the full system):
+- **Dark only.** Background `#07080a`, surface `#101111`, card `#1b1c1e`.
+- **Font:** Inter for UI/body/data (`letter-spacing: 0.2px`); Satoshi proposed for display.
+- **Accent:** red `#FF6363` (brand + destructive, NOT the primary CTA). Primary CTA = white bg + `#18191a` text.
+- **Semantic:** blue `#55b3ff`, green `#5fc992`, yellow `#ffbc33`.
+- **Signature:** tactile key-shadow controls, `framer-motion` with ease `[0.25, 0.1, 0.25, 1]`, `rounded-xl` cards.
+- **Identity:** AI-first and alive — restraint everywhere so the AI moments (motion, red pulse) land.

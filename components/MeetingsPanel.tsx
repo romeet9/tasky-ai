@@ -323,6 +323,7 @@ export default function MeetingsPanel({ onMeetingSelect, onCreateMeeting, refres
 
                       <div className="relative" ref={openMenuId === meeting.id ? menuRef : undefined}>
                         <button
+                          aria-label="Meeting options"
                           onClick={(e) => {
                             e.stopPropagation();
                             setOpenMenuId(openMenuId === meeting.id ? null : meeting.id);

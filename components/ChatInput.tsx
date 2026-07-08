@@ -249,7 +249,7 @@ export default function ChatInput({
               className="w-full resize-none bg-transparent px-4 py-3 pr-12 text-[14px] leading-relaxed text-[#f9f9f9] placeholder:text-[#6a6b6c] focus:outline-none"
               style={{ letterSpacing: "0.2px", maxHeight: "160px" }}
             />
-            <motion.button onClick={() => fileInputRef.current?.click()} className="absolute top-3 right-3 flex items-center justify-center h-8 w-8 rounded-full" style={btnStyle} whileHover={{ opacity: 0.6 }} whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 400, damping: 17 }}>
+            <motion.button aria-label="Attach file" onClick={() => fileInputRef.current?.click()} className="absolute top-3 right-3 flex items-center justify-center h-8 w-8 rounded-full" style={btnStyle} whileHover={{ opacity: 0.6 }} whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 400, damping: 17 }}>
               <PushPin size={14} color={RAYCAST.textMuted} weight="regular" />
             </motion.button>
             <input ref={fileInputRef} type="file" multiple accept=".pdf,.docx,.xlsx,.xls,.csv" onChange={handleFileSelect} className="hidden" />

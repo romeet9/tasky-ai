@@ -509,6 +509,7 @@ export default function ChatInterface({
 
         {/* History button */}
         <motion.button
+          aria-label="Chat history"
           onClick={() => {
             loadSessions();
             setShowHistory(!showHistory);

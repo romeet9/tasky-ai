@@ -78,7 +78,7 @@ export default function UsersPage() {
           ) : users.length === 0 ? (
             <div className="p-12 text-center">
               <p className="text-[#6a6b6c] text-base">No users found</p>
-              <p className="text-[#434345] text-sm mt-1">Users will appear here when they sign up</p>
+              <p className="text-[#9c9c9d] text-sm mt-1">Users will appear here when they sign up</p>
             </div>
           ) : (
             <div className="overflow-x-auto">

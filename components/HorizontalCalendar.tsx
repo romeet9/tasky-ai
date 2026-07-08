@@ -90,6 +90,7 @@ export default function HorizontalCalendar({
     >
       <div className="flex items-center gap-2 sm:gap-3">
         <button
+          aria-label="Previous week"
           onClick={goToPreviousWeek}
           className="shrink-0 rounded-[86px] p-2 text-raycast-medium-gray transition-all hover:bg-raycast-card hover:text-raycast-white active:scale-95"
           style={{ border: "1px solid rgba(255,255,255,0.06)" }}
@@ -167,6 +168,7 @@ export default function HorizontalCalendar({
         </div>
 
         <button
+          aria-label="Next week"
           onClick={goToNextWeek}
           className="shrink-0 rounded-[86px] p-2 text-raycast-medium-gray transition-all hover:bg-raycast-card hover:text-raycast-white active:scale-95"
           style={{ border: "1px solid rgba(255,255,255,0.06)" }}

@@ -5,6 +5,7 @@ import SWRegister from "@/components/SWRegister";
 import { AuthProvider } from "@/components/AuthProvider";
 import { WorkspaceProvider } from "@/components/WorkspaceProvider";
 import EmailVerificationBanner from "@/components/EmailVerificationBanner";
+import { MotionConfig } from "framer-motion";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -55,10 +56,12 @@ export default function RootLayout({
         className="min-h-full flex flex-col"
         style={{ fontFamily: "var(--font-inter)" }}
       >
-        <AuthProvider>
-          <EmailVerificationBanner />
-          <WorkspaceProvider>{children}</WorkspaceProvider>
-        </AuthProvider>
+        <MotionConfig reducedMotion="user">
+          <AuthProvider>
+            <EmailVerificationBanner />
+            <WorkspaceProvider>{children}</WorkspaceProvider>
+          </AuthProvider>
+        </MotionConfig>
         <SWRegister />
       </body>
     </html>

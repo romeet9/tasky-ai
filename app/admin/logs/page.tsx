@@ -77,7 +77,7 @@ export default function LogsPage() {
           ) : filteredLogs.length === 0 ? (
             <div className="p-12 text-center">
               <p className="text-[#6a6b6c] text-base">No audit logs found</p>
-              <p className="text-[#434345] text-sm mt-1">Actions will appear here when admins make changes</p>
+              <p className="text-[#9c9c9d] text-sm mt-1">Actions will appear here when admins make changes</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -93,7 +93,7 @@ export default function LogsPage() {
                   <div key={log.id} className="grid grid-cols-[1.2fr_0.8fr_1.2fr_2fr] gap-0 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.02] transition-colors">
                     <div className="px-4 py-3 whitespace-nowrap">
                       <div className="text-[#9c9c9d] text-sm">{formatRelativeTime(log.timestamp)}</div>
-                      <div className="text-[#434345] text-xs">{formatDateTime(log.timestamp)}</div>
+                      <div className="text-[#9c9c9d] text-xs">{formatDateTime(log.timestamp)}</div>
                     </div>
                     <div className="px-4 py-3">
                       <Badge variant={actionInfo.variant} size="xs">{actionInfo.label}</Badge>

@@ -147,7 +147,7 @@ export default function Footer() {
             style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
           >
             <p
-              className="text-[12px] text-[#434345]"
+              className="text-[12px] text-[#9c9c9d]"
               style={{ letterSpacing: "0.4px" }}
             >
               &copy; {new Date().getFullYear()} TaskyAI. All rights reserved.
@@ -155,21 +155,21 @@ export default function Footer() {
             <div className="flex items-center gap-6">
               <Link
                 href="/terms#privacy-policy"
-                className="text-[12px] text-[#434345] transition-all duration-200 hover:text-[#9c9c9d]"
+                className="text-[12px] text-[#9c9c9d] transition-all duration-200 hover:text-[#f9f9f9]"
                 style={{ letterSpacing: "0.4px" }}
               >
                 Privacy
               </Link>
               <Link
                 href="/terms"
-                className="text-[12px] text-[#434345] transition-all duration-200 hover:text-[#9c9c9d]"
+                className="text-[12px] text-[#9c9c9d] transition-all duration-200 hover:text-[#f9f9f9]"
                 style={{ letterSpacing: "0.4px" }}
               >
                 Terms
               </Link>
               <Link
                 href="/contact"
-                className="text-[12px] text-[#434345] transition-all duration-200 hover:text-[#9c9c9d]"
+                className="text-[12px] text-[#9c9c9d] transition-all duration-200 hover:text-[#f9f9f9]"
                 style={{ letterSpacing: "0.4px" }}
               >
                 Contact
